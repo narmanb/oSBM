@@ -64,8 +64,15 @@ android {
 
     buildTypes {
         debug {
+            // Fork test builds install alongside the published app so display,
+            // touch and controller changes can be tested without uninstalling
+            // the user's working oSBM installation. Keep the same stable test
+            // signing key across CI runs so later test APKs update in place.
+            applicationIdSuffix ".forktest"
+            versionNameSuffix "-forktest"
             debuggable true
             jniDebuggable true
+            signingConfig signingConfigs.osbmRelease
         }
         release {
             debuggable false
