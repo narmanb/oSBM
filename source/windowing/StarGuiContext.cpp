@@ -96,9 +96,16 @@ float GuiContext::interfaceScale() const {
 #else
   float DisplayScale {std::max(1.0f, std::round(getDisplayScale()))};
 #ifdef STAR_SYSTEM_ANDROID
-  // Character creation is about 480 interface pixels tall; leave room for
-  // its border and buttons on short landscape displays.
-  return std::min(m_interfaceScale * DisplayScale, std::max(1.0f, windowSize()[1] / 500.0f));
+  // Keep the mobile AUTO scale safety cap that prevents short landscape
+  // displays from cropping tall panes, but do not silently cap a scale the
+  // player explicitly selected in Graphics options.  AUTO is computed in
+  // ClientApplication::render() from the current logical render canvas.
+  float shortSide = (float)std::min(windowSize()[0], windowSize()[1]);
+  float autoScale = std::min(2.4f, std::max(1.35f, shortSide / 500.0f));
+  bool usingAutoScale = std::abs(m_interfaceScale - autoScale) < 0.001f;
+  if (usingAutoScale)
+    return std::min(m_interfaceScale * DisplayScale, std::max(1.0f, windowSize()[1] / 500.0f));
+  return m_interfaceScale * DisplayScale;
 #else
   return m_interfaceScale * DisplayScale;
 #endif
