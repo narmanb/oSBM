@@ -79,11 +79,9 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      # Upstream restores its private release-signing keystore here. Forks do
-      # not receive repository secrets, so fork test builds use a deliberately
-      # public test-only key committed as base64. This gives repeatable signing
-      # across CI runs while the debug applicationIdSuffix keeps these APKs
-      # isolated from the published app.
+      # Upstream release builds use a private signing key that forks do not
+      # inherit. Debug builds are test-only and get a fresh local key so fork
+      # CI can build without any repository secret.
       - name: Setup APK signing keystore
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
@@ -101,9 +99,21 @@ jobs:
               echo "Restored keystore does not match the expected upstream release certificate." >&2
               exit 1
             fi
+          elif [ "${{ inputs.build_type }}" = "Debug" ]; then
+            echo "No upstream signing secret is available; generating a debug-only fork key."
+            rm -f "${KEYSTORE}"
+            keytool -genkeypair \
+              -keystore "${KEYSTORE}" \
+              -storepass android \
+              -keypass android \
+              -alias androiddebugkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=oSBM Fork Debug,O=narmanb,C=US"
           else
-            echo "No upstream signing secret is available; using the fork test key."
-            base64 -d .github/test-signing/osbm-fork-debug.keystore.b64 > "${KEYSTORE}"
+            echo "Release builds require ANDROID_DEBUG_KEYSTORE_B64; use Debug on this fork." >&2
+            exit 1
           fi
 
           keytool -list -keystore "${KEYSTORE}" -alias androiddebugkey -storepass android >/dev/null
